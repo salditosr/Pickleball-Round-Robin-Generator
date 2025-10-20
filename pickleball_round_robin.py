@@ -876,18 +876,34 @@ def show_play_page():
         for game in st.session_state.current_games:
             court_num = game['court']
             
-            # Court header
-            st.markdown(f"### COURT {court_num}")
+            # Court header - STYLED
+            st.markdown(f"""
+            <div style='background-color: #ff6b35; padding: 12px; border-radius: 8px; margin-bottom: 15px;'>
+                <h3 style='margin: 0; color: white;'>COURT {court_num}</h3>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Create the horizontal layout matching the screenshot
             col1, col2, col3 = st.columns([3, 1, 1])
             
             with col1:
-                # Team 1 - horizontal display
-                st.markdown(f"**{game['team1'][0]}** &nbsp;&nbsp;&nbsp; **{game['team1'][1]}**")
-                st.markdown("---")
-                # Team 2 - horizontal display  
-                st.markdown(f"**{game['team2'][0]}** &nbsp;&nbsp;&nbsp; **{game['team2'][1]}**")
+                # Team 1 - BLUE background, LARGE names
+                st.markdown(f"""
+                <div style='background-color: #bbdefb; padding: 18px; border-radius: 8px; margin-bottom: 8px; border: 2px solid #2196f3;'>
+                    <span style='font-size: 22px; font-weight: bold; color: #0d47a1;'>{game['team1'][0]}</span>
+                    <span style='font-size: 22px; font-weight: bold; color: #0d47a1; margin-left: 50px;'>{game['team1'][1]}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+                
+                # Team 2 - ORANGE background, LARGE names
+                st.markdown(f"""
+                <div style='background-color: #ffe0b2; padding: 18px; border-radius: 8px; border: 2px solid #ff9800;'>
+                    <span style='font-size: 22px; font-weight: bold; color: #e65100;'>{game['team2'][0]}</span>
+                    <span style='font-size: 22px; font-weight: bold; color: #e65100; margin-left: 50px;'>{game['team2'][1]}</span>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
                 st.markdown("##")
@@ -923,12 +939,18 @@ def show_play_page():
                     'score2': team2_score
                 }
             
-            st.markdown("")
+            # Add spacing between courts
+            st.markdown("<br>", unsafe_allow_html=True)
         
-        # Show who's sitting out at the bottom
+        # Show who's sitting out at the bottom - STYLED
         if st.session_state.sitting_out:
             st.markdown("---")
-            st.info(f"**Sitting Out:** {', '.join(st.session_state.sitting_out)}")
+            st.markdown(f"""
+            <div style='background-color: #f5f5f5; padding: 18px; border-radius: 8px; border-left: 4px solid #9e9e9e;'>
+                <h4 style='margin: 0; color: #616161;'>🪑 Sitting Out This Round</h4>
+                <p style='margin: 8px 0 0 0; font-size: 20px; font-weight: 500; color: #424242;'>{', '.join(st.session_state.sitting_out)}</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Submit button
         st.markdown("")
