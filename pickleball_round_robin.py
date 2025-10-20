@@ -25,11 +25,17 @@ if 'page' not in st.session_state:
 if 'format_choice' not in st.session_state:
     st.session_state.format_choice = None
 
+if 'game_score' not in st.session_state:
+    st.session_state.game_score = 11
+
 if 'num_players' not in st.session_state:
     st.session_state.num_players = 8
 
 if 'num_courts' not in st.session_state:
     st.session_state.num_courts = 2
+
+if 'num_rounds' not in st.session_state:
+    st.session_state.num_rounds = 1
 
 if 'players' not in st.session_state:
     st.session_state.players = []
@@ -74,6 +80,9 @@ if 'fixed_partners' not in st.session_state:
 if 'gender_assignments' not in st.session_state:
     st.session_state.gender_assignments = {}
 
+if 'partner_history' not in st.session_state:
+    st.session_state.partner_history = {}
+
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
@@ -82,6 +91,73 @@ def calculate_win_percentage(wins, games):
     if games == 0:
         return 0
     return (wins / games) * 100
+
+def create_classic_round_robin_matchups(players, num_courts):
+    """
+    Classic Round Robin: Priority is getting everyone to play with people 
+    who haven't been partners yet before repeating
+    """
+    # Initialize partner history if not exists
+    if 'partner_history' not in st.session_state:
+        st.session_state.partner_history = {}
+        for player in players:
+            st.session_state.partner_history[player] = set()
+    
+    # Get players who haven't partnered
+    def get_unpartnered_pair(available_players):
+        """Find two players who haven't partnered yet"""
+        for i, p1 in enumerate(available_players):
+            for p2 in available_players[i+1:]:
+                if p2 not in st.session_state.partner_history.get(p1, set()):
+                    return (p1, p2)
+        # If all have partnered, return least frequent pair
+        return (available_players[0], available_players[1]) if len(available_players) >= 2 else None
+    
+    shuffled = players.copy()
+    random.shuffle(shuffled)
+    
+    players_per_round = num_courts * 4
+    playing = shuffled[:players_per_round]
+    sitting = shuffled[players_per_round:]
+    
+    games = []
+    used_players = set()
+    
+    # Try to create games with new partnerships
+    for court in range(num_courts):
+        available = [p for p in playing if p not in used_players]
+        if len(available) < 4:
+            break
+            
+        # Get two pairs
+        pair1 = get_unpartnered_pair(available)
+        if not pair1:
+            break
+            
+        used_players.add(pair1[0])
+        used_players.add(pair1[1])
+        
+        available = [p for p in playing if p not in used_players]
+        pair2 = get_unpartnered_pair(available)
+        if not pair2:
+            break
+            
+        used_players.add(pair2[0])
+        used_players.add(pair2[1])
+        
+        games.append({
+            'court': court + 1,
+            'team1': [pair1[0], pair1[1]],
+            'team2': [pair2[0], pair2[1]]
+        })
+        
+        # Update partner history
+        st.session_state.partner_history[pair1[0]].add(pair1[1])
+        st.session_state.partner_history[pair1[1]].add(pair1[0])
+        st.session_state.partner_history[pair2[0]].add(pair2[1])
+        st.session_state.partner_history[pair2[1]].add(pair2[0])
+    
+    return games, sitting
 
 def create_popcorn_matchups(players, num_courts, fixed_partners=None):
     """Popcorn: Random matchups every round"""
@@ -347,58 +423,104 @@ def reset_tournament():
 # ============================================
 
 def show_home_page():
-    st.title("🏓 Pickleball Tournament Pro")
-    st.markdown("### Professional Tournament Management")
+    st.title("Round Robin Generator")
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Create a form-like layout with sections
+    st.markdown("### Tournament Configuration")
+    st.markdown("")
     
+    # Section 1: Score
+    st.markdown("#### 1. Score")
+    game_score = st.number_input(
+        "What score will games go up to?",
+        min_value=5,
+        max_value=30,
+        value=st.session_state.game_score,
+        step=1,
+        help="Default is 11 points"
+    )
+    st.session_state.game_score = game_score
+    
+    st.markdown("")
+    
+    # Section 2: Number of Players
+    st.markdown("#### 2. Number of Players")
+    num_players = st.number_input(
+        "How many people are participating?",
+        min_value=4,
+        max_value=70,
+        value=st.session_state.num_players,
+        step=1
+    )
+    st.session_state.num_players = num_players
+    
+    st.markdown("")
+    
+    # Section 3: Courts
+    st.markdown("#### 3. Courts")
+    num_courts = st.number_input(
+        "How many courts are available?",
+        min_value=1,
+        max_value=20,
+        value=st.session_state.num_courts,
+        step=1
+    )
+    st.session_state.num_courts = num_courts
+    
+    st.markdown("")
+    
+    # Section 4: Rounds
+    st.markdown("#### 4. Rounds")
+    num_rounds = st.number_input(
+        "How many rounds do you want to play?",
+        min_value=1,
+        max_value=50,
+        value=st.session_state.num_rounds,
+        step=1
+    )
+    st.session_state.num_rounds = num_rounds
+    
+    # Calculate estimated time
+    min_time = num_rounds * 10
+    max_time = num_rounds * 15
+    st.info(f"⏱️ Estimated time: {min_time}-{max_time} minutes ({min_time // 60}h {min_time % 60}m - {max_time // 60}h {max_time % 60}m)")
+    
+    st.markdown("")
+    
+    # Section 5: Partners
+    st.markdown("#### 5. Partners")
+    partner_type = st.checkbox(
+        "Fixed Partners",
+        value=st.session_state.partner_mode == "Fixed Partners",
+        help="Check for fixed partners, uncheck for random partners"
+    )
+    
+    if partner_type:
+        st.session_state.partner_mode = "Fixed Partners"
+        st.success("✅ Partners will stay together throughout the tournament")
+    else:
+        st.session_state.partner_mode = "Singles"
+        st.success("✅ Partners will be randomly assigned each round")
+    
+    st.markdown("---")
+    
+    # Start button
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.markdown("## Welcome!")
-        st.markdown("""
-        Manage your pickleball tournaments with ease:
-        
-        ✅ **8 Tournament Formats** - From casual to competitive  
-        ✅ **Score Tracking** - Real points scored, not just wins  
-        ✅ **Live Standings** - Updated in real-time  
-        ✅ **12-Minute Timer** - Keep rounds on schedule  
-        ✅ **8-70 Players** - Handles any group size  
-        ✅ **Break Management** - Rotate players easily
-        """)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        if st.button("🚀 Start Tournament", use_container_width=True, type="primary", key="btn_start"):
+        if st.button("▶️ Start", type="primary", use_container_width=True):
             go_to_page('format_selection')
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Quick info
-        with st.expander("📖 About Tournament Formats"):
-            st.markdown("""
-            **Social Formats:**
-            - 🍿 Popcorn - Random mixing
-            - 🎲 Scramble - Group play
-            - 🎭 Mixed Madness - Mixed doubles
-            
-            **Competitive Formats:**
-            - ⚔️ Gauntlet - Skill-based matching
-            - 👑 Claim the Throne - Court progression
-            - 🏔️ Up & Down the River - Multi-game courts
-            - 🌟 Cream of the Crop - Rising stars
-            - 🎯 Double Header - Extended sessions
-            """)
 
 # ============================================
 # PAGE 2: FORMAT SELECTION
 # ============================================
 
 def show_format_selection_page():
-    st.title("🔄 Round Robin Tournament")
+    st.title("Round Robin Generator")
     
     # Back button
-    if st.button("← Back to Home"):
+    if st.button("← Back"):
         go_to_page('home')
     
     st.markdown("---")
@@ -406,6 +528,11 @@ def show_format_selection_page():
     
     # Format selection with descriptions
     format_options = {
+        "Classic Round Robin": {
+            "icon": "🎯",
+            "short": "Maximum Partner Variety",
+            "description": "Priority is getting everyone to play with people who haven't been partners yet before repeating. Best for maximizing partner variety over multiple rounds."
+        },
         "Popcorn": {
             "icon": "🍿",
             "short": "Random & Social",
@@ -460,96 +587,29 @@ def show_format_selection_page():
                 
                 if st.button(f"Select {format_name}", key=f"select_{format_name}", use_container_width=True):
                     st.session_state.format_choice = format_name
-                    go_to_page('configuration')
+                    go_to_page('player_entry')
                 
                 st.markdown("<br>", unsafe_allow_html=True)
     
 # ============================================
-# PAGE 3: CONFIGURATION
-# ============================================
-
-def show_configuration_page():
-    st.title(f"🔄 {st.session_state.format_choice}")
-    
-    # Back button
-    if st.button("← Back to Format Selection"):
-        go_to_page('format_selection')
-    
-    st.markdown("---")
-    st.markdown("## Step 2: Configure Tournament")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Basic Settings")
-        
-        num_players = st.number_input(
-            "Number of Players:",
-            min_value=4,
-            max_value=70,
-            value=st.session_state.num_players,
-            step=1,
-            help="How many people are playing?"
-        )
-        st.session_state.num_players = num_players
-        
-        num_courts = st.number_input(
-            "Number of Courts:",
-            min_value=1,
-            max_value=20,
-            value=st.session_state.num_courts,
-            step=1,
-            help="How many courts are available?"
-        )
-        st.session_state.num_courts = num_courts
-        
-        # Calculated info
-        max_playing = num_courts * 4
-        st.info(f"📊 Up to {max_playing} players can play simultaneously on {num_courts} court(s)")
-    
-    with col2:
-        st.subheader("Partner Mode")
-        
-        partner_mode = st.radio(
-            "How should partners be assigned?",
-            ["Singles (Random Pairings)", "Fixed Partners"],
-            help="Singles = new random partners each game. Fixed = same partner throughout tournament."
-        )
-        st.session_state.partner_mode = partner_mode
-        
-        if partner_mode == "Fixed Partners":
-            st.info("💡 You'll assign partner pairs on the next page")
-        
-        # Special setting for Mixed Madness
-        if st.session_state.format_choice == "Mixed Madness":
-            st.info("🎭 You'll assign genders on the next page for mixed doubles")
-    
-    st.markdown("---")
-    
-    # Continue button
-    col_a, col_b, col_c = st.columns([1, 1, 1])
-    with col_b:
-        if st.button("Continue to Player Entry →", type="primary", use_container_width=True):
-            go_to_page('player_entry')
-
-# ============================================
-# PAGE 4: PLAYER ENTRY
+# PAGE 3: PLAYER ENTRY
 # ============================================
 
 def show_player_entry_page():
-    st.title(f"🔄 {st.session_state.format_choice}")
+    st.title("Round Robin Generator")
     
     # Back button
-    if st.button("← Back to Configuration"):
-        go_to_page('configuration')
+    if st.button("← Back"):
+        go_to_page('format_selection')
     
     st.markdown("---")
-    st.markdown("## Step 3: Enter Players")
+    st.markdown("## Step 2: Enter Player Names")
     
     # Create individual input boxes for each player
     num_players = st.session_state.num_players
     
-    st.subheader(f"Enter {num_players} Player Names:")
+    st.markdown(f"**Enter names for all {num_players} players:**")
+    st.markdown("")
     
     # Organize inputs in columns for better layout
     cols_per_row = 3
@@ -564,7 +624,7 @@ def show_player_entry_page():
                     player_name = st.text_input(
                         f"Player {player_num + 1}:",
                         key=f"player_input_{player_num}",
-                        placeholder=f"Name {player_num + 1}"
+                        placeholder=f"Player {player_num + 1}"
                     )
                     if player_name.strip():
                         players.append(player_name.strip())
@@ -572,6 +632,7 @@ def show_player_entry_page():
     st.session_state.players = players
     
     # Show progress
+    st.markdown("")
     if len(players) < num_players:
         st.warning(f"⚠️ Entered {len(players)} of {num_players} players")
     else:
@@ -579,13 +640,13 @@ def show_player_entry_page():
     
     st.markdown("---")
     
-    # Additional settings based on mode
+    # Additional settings based on mode/format
     col1, col2 = st.columns(2)
     
     with col1:
         # Fixed partners assignment
         if st.session_state.partner_mode == "Fixed Partners" and len(players) >= 2:
-            st.subheader("Assign Partner Pairs")
+            st.markdown("### Assign Partner Pairs")
             
             available_players = players.copy()
             temp_partners = {}
@@ -627,7 +688,7 @@ def show_player_entry_page():
     with col2:
         # Gender assignment for Mixed Madness
         if st.session_state.format_choice == "Mixed Madness" and len(players) >= 4:
-            st.subheader("Assign Genders")
+            st.markdown("### Assign Genders")
             
             for player in players:
                 gender = st.radio(
@@ -652,9 +713,9 @@ def show_player_entry_page():
                         'wins': 0,
                         'losses': 0,
                         'games_played': 0,
-                        'points_for': 0,      # Total points scored
-                        'points_against': 0,  # Total points allowed
-                        'point_diff': 0       # Differential
+                        'points_for': 0,
+                        'points_against': 0,
+                        'point_diff': 0
                     }
                 
                 # AUTO-GENERATE FIRST ROUND
@@ -685,7 +746,13 @@ def generate_new_round():
     st.session_state.round_start_time = time.time()
     
     # Generate based on format
-    if format_choice == "Popcorn":
+    if format_choice == "Classic Round Robin":
+        games, sitting = create_classic_round_robin_matchups(players, num_courts)
+        st.session_state.current_games = games
+        st.session_state.sitting_out = sitting
+        st.session_state.court_groups = []
+    
+    elif format_choice == "Popcorn":
         games, sitting = create_popcorn_matchups(players, num_courts, fixed_partners)
         st.session_state.current_games = games
         st.session_state.sitting_out = sitting
@@ -1612,8 +1679,6 @@ def main():
         show_home_page()
     elif page == 'format_selection':
         show_format_selection_page()
-    elif page == 'configuration':
-        show_configuration_page()
     elif page == 'player_entry':
         show_player_entry_page()
     elif page == 'play':
