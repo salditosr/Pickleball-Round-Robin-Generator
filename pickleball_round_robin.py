@@ -442,22 +442,8 @@ def show_home_page():
     st.markdown("### Tournament Configuration")
     st.markdown("")
     
-    # Section 1: Score
-    st.markdown("#### 1. Score")
-    game_score = st.number_input(
-        "What score will games go up to?",
-        min_value=5,
-        max_value=30,
-        value=st.session_state.game_score,
-        step=1,
-        help="Default is 11 points"
-    )
-    st.session_state.game_score = game_score
-    
-    st.markdown("")
-    
-    # Section 2: Number of Players
-    st.markdown("#### 2. Number of Players")
+    # Section 1: Number of Players
+    st.markdown("#### 1. Number of Players")
     num_players = st.number_input(
         "How many people are participating?",
         min_value=4,
@@ -469,8 +455,8 @@ def show_home_page():
     
     st.markdown("")
     
-    # Section 3: Courts
-    st.markdown("#### 3. Courts")
+    # Section 2: Courts
+    st.markdown("#### 2. Courts")
     num_courts = st.number_input(
         "How many courts are available?",
         min_value=1,
@@ -482,26 +468,8 @@ def show_home_page():
     
     st.markdown("")
     
-    # Section 4: Rounds
-    st.markdown("#### 4. Rounds")
-    num_rounds = st.number_input(
-        "How many rounds do you want to play?",
-        min_value=1,
-        max_value=50,
-        value=st.session_state.num_rounds,
-        step=1
-    )
-    st.session_state.num_rounds = num_rounds
-    
-    # Calculate estimated time
-    min_time = num_rounds * 10
-    max_time = num_rounds * 15
-    st.info(f"⏱️ Estimated time: {min_time}-{max_time} minutes ({min_time // 60}h {min_time % 60}m - {max_time // 60}h {max_time % 60}m)")
-    
-    st.markdown("")
-    
-    # Section 5: Partners
-    st.markdown("#### 5. Partners")
+    # Section 3: Partners
+    st.markdown("#### 3. Partners")
     partner_type = st.checkbox(
         "Fixed Partners",
         value=st.session_state.partner_mode == "Fixed Partners",
@@ -915,9 +883,10 @@ def show_play_page():
                     "Score",
                     min_value=0,
                     max_value=30,
-                    value=0,
+                    value=None,
                     key=f"single_t1_c{court_num}_r{st.session_state.current_round}",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    placeholder="Enter score"
                 )
                 
                 st.markdown("---")
@@ -926,9 +895,10 @@ def show_play_page():
                     "Score",
                     min_value=0,
                     max_value=30,
-                    value=0,
+                    value=None,
                     key=f"single_t2_c{court_num}_r{st.session_state.current_round}",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    placeholder="Enter score"
                 )
                 
                 # Store scores
@@ -961,7 +931,7 @@ def show_play_page():
                 # Validate
                 all_valid = True
                 for court_num, score_data in st.session_state.pending_scores.items():
-                    if score_data['score1'] == 0 and score_data['score2'] == 0:
+                    if (score_data['score1'] is None or score_data['score1'] == 0) and (score_data['score2'] is None or score_data['score2'] == 0):
                         all_valid = False
                         break
                 
@@ -1065,9 +1035,10 @@ def show_play_page():
                                     "Team 1",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"mg_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             with col_vs:
@@ -1078,15 +1049,16 @@ def show_play_page():
                                     "Team 2",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"mg_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             st.markdown("")
                             
                             if st.button("✅ Submit", key=f"mg_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
-                                if team1_score == 0 and team2_score == 0:
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
                                     st.error("Please enter scores!")
                                 else:
                                     team1_won = team1_score > team2_score
@@ -1172,9 +1144,10 @@ def show_play_page():
                                     "Team 1",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"fp_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             with col_vs:
@@ -1185,15 +1158,16 @@ def show_play_page():
                                     "Team 2",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"fp_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             st.markdown("")
                             
                             if st.button("✅ Submit", key=f"fp_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
-                                if team1_score == 0 and team2_score == 0:
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
                                     st.error("Please enter scores!")
                                 else:
                                     team1_won = team1_score > team2_score
@@ -1296,9 +1270,10 @@ def show_play_page():
                                     "Team 1",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"mg_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             with col_vs:
@@ -1309,15 +1284,16 @@ def show_play_page():
                                     "Team 2",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"mg_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             st.markdown("")
                             
                             if st.button("✅ Submit This Game", key=f"mg_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
-                                if team1_score == 0 and team2_score == 0:
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
                                     st.error("Please enter scores!")
                                 else:
                                     team1_won = team1_score > team2_score
@@ -1404,9 +1380,10 @@ def show_play_page():
                                     "Team 1",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"fp_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             with col_vs:
@@ -1417,15 +1394,16 @@ def show_play_page():
                                     "Team 2",
                                     min_value=0,
                                     max_value=30,
-                                    value=0,
+                                    value=None,
                                     key=f"fp_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
-                                    label_visibility="collapsed"
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
                                 )
                             
                             st.markdown("")
                             
                             if st.button("✅ Submit This Game", key=f"fp_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
-                                if team1_score == 0 and team2_score == 0:
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
                                     st.error("Please enter scores!")
                                 else:
                                     team1_won = team1_score > team2_score
