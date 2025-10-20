@@ -5,7 +5,6 @@ import streamlit as st
 import random
 from itertools import combinations
 from datetime import datetime
-import time
 
 # ============================================
 # PAGE CONFIGURATION
@@ -49,9 +48,6 @@ if 'scores' not in st.session_state:
 if 'game_scores' not in st.session_state:
     # Track individual game scores for history
     st.session_state.game_scores = []
-
-if 'round_start_time' not in st.session_state:
-    st.session_state.round_start_time = None
 
 if 'players_on_break' not in st.session_state:
     st.session_state.players_on_break = []
@@ -416,7 +412,6 @@ def reset_tournament():
     st.session_state.court_points = {}
     st.session_state.game_scores = []
     st.session_state.players_on_break = []
-    st.session_state.round_start_time = None
 
 # ============================================
 # PAGE 1: HOME
@@ -742,9 +737,6 @@ def generate_new_round():
     format_choice = st.session_state.format_choice
     fixed_partners = st.session_state.fixed_partners if st.session_state.partner_mode == "Fixed Partners" else None
     
-    # START TIMER FOR NEW ROUND
-    st.session_state.round_start_time = time.time()
-    
     # Generate based on format
     if format_choice == "Classic Round Robin":
         games, sitting = create_classic_round_robin_matchups(players, num_courts)
@@ -827,37 +819,19 @@ def check_round_complete():
 # ============================================
 
 def show_play_page():
-    # Top navigation bar with TIMER
+    # Simple top navigation
     col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
     
     with col_nav1:
-        if st.button("⬅️ Back"):
+        if st.button("← Back"):
             go_to_page('player_entry')
     
     with col_nav2:
-        st.markdown(f"<h2 style='text-align: center;'>🎮 Round {st.session_state.current_round}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align: center;'>Round Robin: Round {st.session_state.current_round}</h2>", unsafe_allow_html=True)
     
     with col_nav3:
-        if st.button("🏆 View Standings"):
+        if st.button("🏆 Standings"):
             go_to_page('standings')
-    
-    # TIMER DISPLAY
-    if st.session_state.round_start_time:
-        elapsed = time.time() - st.session_state.round_start_time
-        remaining = max(0, 720 - elapsed)  # 720 seconds = 12 minutes
-        
-        minutes = int(remaining // 60)
-        seconds = int(remaining % 60)
-        
-        if remaining > 0:
-            timer_color = "green" if remaining > 180 else "orange" if remaining > 60 else "red"
-            st.markdown(f"<h1 style='text-align: center; color: {timer_color};'>⏱️ {minutes:02d}:{seconds:02d}</h1>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<h1 style='text-align: center; color: red;'>⏱️ TIME'S UP!</h1>", unsafe_allow_html=True)
-        
-        # Auto-refresh every second for timer
-        time.sleep(0.1)
-        st.rerun()
     
     st.markdown("---")
     
@@ -865,11 +839,10 @@ def show_play_page():
     num_courts = st.session_state.num_courts
     format_choice = st.session_state.format_choice
     
-    # Check if we need to show "Next Round" button
+    # Check if we need to generate first round
     games_in_progress = st.session_state.current_games or st.session_state.court_groups
     
     if not games_in_progress:
-        # No games generated yet (shouldn't happen with auto-gen, but just in case)
         st.info("⚠️ No games generated. Click below to start Round 1.")
         if st.button("🎲 Generate Round 1", type="primary", use_container_width=True):
             st.session_state.current_round = 1
@@ -877,94 +850,77 @@ def show_play_page():
             st.rerun()
         return
     
-    # Show shuffle button for random formats
-    if st.session_state.current_games and format_choice in ["Popcorn", "Mixed Madness"]:
-        col_shuffle1, col_shuffle2, col_shuffle3 = st.columns([1, 1, 1])
-        with col_shuffle2:
-            if st.button("🔀 Shuffle Matchups", use_container_width=True):
-                generate_new_round()  # Re-generate with same round number
-                st.rerun()
-        st.markdown("---")
-    
     # Dictionary to store all scores before submission
     if 'pending_scores' not in st.session_state:
         st.session_state.pending_scores = {}
     
-    # DISPLAY GAMES - Single game formats (Popcorn, Gauntlet, Claim the Throne, Mixed Madness)
+    # DISPLAY GAMES - Single game formats
     if st.session_state.current_games:
-        st.markdown("### 📍 Enter Scores for All Courts")
-        st.markdown("")
         
         for game in st.session_state.current_games:
             court_num = game['court']
             
-            # Container for each game
-            with st.container():
-                st.markdown(f"#### 🏟️ Court {court_num}")
-                
-                # Create columns for score entry
-                col_team1, col_score, col_team2 = st.columns([2, 1.5, 2])
-                
-                with col_team1:
-                    st.markdown("### 🔵 Team 1")
-                    st.markdown(f"**{game['team1'][0]}**")
-                    st.markdown(f"**{game['team1'][1]}**")
-                
-                with col_score:
-                    st.markdown("### Score")
-                    
-                    # Score input fields
-                    col_s1, col_vs, col_s2 = st.columns([1, 0.3, 1])
-                    
-                    with col_s1:
-                        team1_score = st.number_input(
-                            "Team 1",
-                            min_value=0,
-                            max_value=30,
-                            value=0,
-                            key=f"score_t1_{court_num}_{st.session_state.current_round}",
-                            label_visibility="collapsed"
-                        )
-                    
-                    with col_vs:
-                        st.markdown("## -")
-                    
-                    with col_s2:
-                        team2_score = st.number_input(
-                            "Team 2",
-                            min_value=0,
-                            max_value=30,
-                            value=0,
-                            key=f"score_t2_{court_num}_{st.session_state.current_round}",
-                            label_visibility="collapsed"
-                        )
-                    
-                    # Store scores in session state
-                    st.session_state.pending_scores[court_num] = {
-                        'team1': game['team1'],
-                        'team2': game['team2'],
-                        'score1': team1_score,
-                        'score2': team2_score
-                    }
-                
-                with col_team2:
-                    st.markdown("### 🔴 Team 2")
-                    st.markdown(f"**{game['team2'][0]}**")
-                    st.markdown(f"**{game['team2'][1]}**")
+            # Court header
+            st.markdown(f"### COURT {court_num}")
+            
+            # Create the horizontal layout matching the screenshot
+            col1, col2, col3 = st.columns([3, 1, 1])
+            
+            with col1:
+                # Team 1 - horizontal display
+                st.markdown(f"**{game['team1'][0]}** &nbsp;&nbsp;&nbsp; **{game['team1'][1]}**")
+                st.markdown("---")
+                # Team 2 - horizontal display  
+                st.markdown(f"**{game['team2'][0]}** &nbsp;&nbsp;&nbsp; **{game['team2'][1]}**")
+            
+            with col2:
+                st.markdown("##")
+                st.markdown("<h3 style='text-align: center;'>VS</h3>", unsafe_allow_html=True)
+            
+            with col3:
+                # Score inputs - big boxes
+                team1_score = st.number_input(
+                    "Score",
+                    min_value=0,
+                    max_value=30,
+                    value=0,
+                    key=f"score_t1_{court_num}_{st.session_state.current_round}",
+                    label_visibility="collapsed"
+                )
                 
                 st.markdown("---")
+                
+                team2_score = st.number_input(
+                    "Score",
+                    min_value=0,
+                    max_value=30,
+                    value=0,
+                    key=f"score_t2_{court_num}_{st.session_state.current_round}",
+                    label_visibility="collapsed"
+                )
+                
+                # Store scores
+                st.session_state.pending_scores[court_num] = {
+                    'team1': game['team1'],
+                    'team2': game['team2'],
+                    'score1': team1_score,
+                    'score2': team2_score
+                }
+            
+            st.markdown("")
         
-        # Show who's sitting out
+        # Show who's sitting out at the bottom
         if st.session_state.sitting_out:
-            st.info(f"🪑 Sitting out this round: {', '.join(st.session_state.sitting_out)}")
+            st.markdown("---")
+            st.info(f"**Sitting Out:** {', '.join(st.session_state.sitting_out)}")
         
-        # BIG SUBMIT ALL BUTTON AT BOTTOM
+        # Submit button
         st.markdown("")
         st.markdown("")
-        col_submit1, col_submit2, col_submit3 = st.columns([1, 2, 1])
-        with col_submit2:
-            if st.button("✅ SUBMIT ALL SCORES", type="primary", use_container_width=True, key="submit_all_scores"):
-                # Validate all scores are entered
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("✅ SUBMIT ALL SCORES", type="primary", use_container_width=True, key="submit_all"):
+                # Validate
                 all_valid = True
                 for court_num, score_data in st.session_state.pending_scores.items():
                     if score_data['score1'] == 0 and score_data['score2'] == 0:
@@ -972,7 +928,7 @@ def show_play_page():
                         break
                 
                 if not all_valid:
-                    st.error("⚠️ Please enter scores for all courts before submitting!")
+                    st.error("⚠️ Please enter scores for all courts!")
                 else:
                     # Process all scores
                     for court_num, score_data in st.session_state.pending_scores.items():
@@ -983,7 +939,7 @@ def show_play_page():
                         
                         team1_won = team1_score > team2_score
                         
-                        # Update all player stats
+                        # Update stats
                         for player in team1:
                             st.session_state.scores[player]['games_played'] += 1
                             st.session_state.scores[player]['points_for'] += team1_score
@@ -1010,7 +966,7 @@ def show_play_page():
                             else:
                                 st.session_state.scores[player]['losses'] += 1
                         
-                        # Save game to history
+                        # Save to history
                         st.session_state.game_scores.append({
                             'round': st.session_state.current_round,
                             'court': court_num,
@@ -1019,14 +975,242 @@ def show_play_page():
                             'score': [team1_score, team2_score]
                         })
                     
-                    # Clear pending scores
+                    # Clear pending
                     st.session_state.pending_scores = {}
                     
-                    # Go to standings page
+                    # Go to standings
                     go_to_page('standings')
     
-    # DISPLAY GROUPS - Multi-game formats (Up/Down River, Scramble, Double Header, Cream of Crop)
+    # DISPLAY GROUPS - Multi-game formats (keep as is for now)
     elif st.session_state.court_groups:
+        st.markdown("### Complete games one at a time")
+        
+        all_complete = True
+        
+        for group in st.session_state.court_groups:
+            court_num = group['court']
+            
+            if 'players' in group:
+                players_list = group['players']
+                all_games = generate_court_games(players_list)
+                current_idx = st.session_state.court_game_index.get(court_num, 0)
+                
+                court_complete = current_idx >= len(all_games)
+                if not court_complete:
+                    all_complete = False
+                
+                with st.expander(
+                    f"🏟️ Court {court_num} — {', '.join(players_list)}" + 
+                    (" ✅ COMPLETE" if court_complete else f" — Game {current_idx + 1}/{len(all_games)}"),
+                    expanded=not court_complete
+                ):
+                    if not court_complete:
+                        game = all_games[current_idx]
+                        
+                        st.markdown(f"**Game {current_idx + 1} of {len(all_games)}**")
+                        st.markdown("")
+                        
+                        col_team1, col_score, col_team2 = st.columns([2, 1.5, 2])
+                        
+                        with col_team1:
+                            st.markdown("### 🔵 Team 1")
+                            st.markdown(f"**{game['team1'][0]}**")
+                            st.markdown(f"**{game['team1'][1]}**")
+                        
+                        with col_score:
+                            st.markdown("### Score")
+                            
+                            col_s1, col_vs, col_s2 = st.columns([1, 0.3, 1])
+                            
+                            with col_s1:
+                                team1_score = st.number_input(
+                                    "Team 1",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=0,
+                                    key=f"grp_score_t1_{court_num}_{current_idx}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            with col_vs:
+                                st.markdown("## -")
+                            
+                            with col_s2:
+                                team2_score = st.number_input(
+                                    "Team 2",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=0,
+                                    key=f"grp_score_t2_{court_num}_{current_idx}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            st.markdown("")
+                            
+                            if st.button("✅ Submit", key=f"grp_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                                if team1_score == 0 and team2_score == 0:
+                                    st.error("Please enter scores!")
+                                else:
+                                    team1_won = team1_score > team2_score
+                                    
+                                    for player in game['team1']:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team1_score
+                                        st.session_state.scores[player]['points_against'] += team2_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    for player in game['team2']:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team2_score
+                                        st.session_state.scores[player]['points_against'] += team1_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if not team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    st.session_state.game_scores.append({
+                                        'round': st.session_state.current_round,
+                                        'court': court_num,
+                                        'team1': game['team1'],
+                                        'team2': game['team2'],
+                                        'score': [team1_score, team2_score]
+                                    })
+                                    
+                                    st.session_state.court_game_index[court_num] += 1
+                                    st.rerun()
+                        
+                        with col_team2:
+                            st.markdown("### 🔴 Team 2")
+                            st.markdown(f"**{game['team2'][0]}**")
+                            st.markdown(f"**{game['team2'][1]}**")
+                    else:
+                        st.success("✅ All games completed!")
+            
+            elif 'pairs' in group:
+                pair1, pair2 = group['pairs']
+                current_idx = st.session_state.court_game_index.get(court_num, 0)
+                max_games = 5
+                
+                court_complete = current_idx >= max_games
+                if not court_complete:
+                    all_complete = False
+                
+                with st.expander(
+                    f"🏟️ Court {court_num}" + 
+                    (" ✅ COMPLETE" if court_complete else f" — Game {current_idx + 1}/{max_games}"),
+                    expanded=not court_complete
+                ):
+                    st.markdown(f"**{pair1[0]} & {pair1[1]}** vs **{pair2[0]} & {pair2[1]}**")
+                    st.markdown("")
+                    
+                    if not court_complete:
+                        st.markdown(f"**Game {current_idx + 1} of {max_games}**")
+                        
+                        col_team1, col_score, col_team2 = st.columns([2, 1.5, 2])
+                        
+                        with col_team1:
+                            st.markdown("### 🔵 Team 1")
+                            st.markdown(f"**{pair1[0]}**")
+                            st.markdown(f"**{pair1[1]}**")
+                        
+                        with col_score:
+                            st.markdown("### Score")
+                            
+                            col_s1, col_vs, col_s2 = st.columns([1, 0.3, 1])
+                            
+                            with col_s1:
+                                team1_score = st.number_input(
+                                    "Team 1",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=0,
+                                    key=f"pair_score_t1_{court_num}_{current_idx}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            with col_vs:
+                                st.markdown("## -")
+                            
+                            with col_s2:
+                                team2_score = st.number_input(
+                                    "Team 2",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=0,
+                                    key=f"pair_score_t2_{court_num}_{current_idx}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            st.markdown("")
+                            
+                            if st.button("✅ Submit", key=f"pair_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                                if team1_score == 0 and team2_score == 0:
+                                    st.error("Please enter scores!")
+                                else:
+                                    team1_won = team1_score > team2_score
+                                    
+                                    for player in pair1:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team1_score
+                                        st.session_state.scores[player]['points_against'] += team2_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    for player in pair2:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team2_score
+                                        st.session_state.scores[player]['points_against'] += team1_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if not team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    st.session_state.game_scores.append({
+                                        'round': st.session_state.current_round,
+                                        'court': court_num,
+                                        'team1': pair1,
+                                        'team2': pair2,
+                                        'score': [team1_score, team2_score]
+                                    })
+                                    
+                                    st.session_state.court_game_index[court_num] += 1
+                                    st.rerun()
+                        
+                        with col_team2:
+                            st.markdown("### 🔴 Team 2")
+                            st.markdown(f"**{pair2[0]}**")
+                            st.markdown(f"**{pair2[1]}**")
+                    else:
+                        st.success("✅ All games completed!")
+        
+        # All courts complete
+        if all_complete:
+            st.markdown("")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("📊 Go to Standings", type="primary", use_container_width=True):
+                    go_to_page('standings')
         st.markdown("### 📍 Court Groups")
         st.markdown("*Complete each game one at a time*")
         st.markdown("")
