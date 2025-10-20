@@ -96,18 +96,24 @@ def create_classic_round_robin_matchups(players, num_courts):
     # Initialize partner history if not exists
     if 'partner_history' not in st.session_state:
         st.session_state.partner_history = {}
-        for player in players:
+    
+    # Ensure all players have partner history entries
+    for player in players:
+        if player not in st.session_state.partner_history:
             st.session_state.partner_history[player] = set()
     
     # Get players who haven't partnered
     def get_unpartnered_pair(available_players):
         """Find two players who haven't partnered yet"""
+        if len(available_players) < 2:
+            return None
+            
         for i, p1 in enumerate(available_players):
             for p2 in available_players[i+1:]:
                 if p2 not in st.session_state.partner_history.get(p1, set()):
                     return (p1, p2)
-        # If all have partnered, return least frequent pair
-        return (available_players[0], available_players[1]) if len(available_players) >= 2 else None
+        # If all have partnered, return any pair
+        return (available_players[0], available_players[1])
     
     shuffled = players.copy()
     random.shuffle(shuffled)
@@ -147,7 +153,16 @@ def create_classic_round_robin_matchups(players, num_courts):
             'team2': [pair2[0], pair2[1]]
         })
         
-        # Update partner history
+        # Update partner history - ensure entries exist first
+        if pair1[0] not in st.session_state.partner_history:
+            st.session_state.partner_history[pair1[0]] = set()
+        if pair1[1] not in st.session_state.partner_history:
+            st.session_state.partner_history[pair1[1]] = set()
+        if pair2[0] not in st.session_state.partner_history:
+            st.session_state.partner_history[pair2[0]] = set()
+        if pair2[1] not in st.session_state.partner_history:
+            st.session_state.partner_history[pair2[1]] = set()
+            
         st.session_state.partner_history[pair1[0]].add(pair1[1])
         st.session_state.partner_history[pair1[1]].add(pair1[0])
         st.session_state.partner_history[pair2[0]].add(pair2[1])
@@ -412,6 +427,7 @@ def reset_tournament():
     st.session_state.court_points = {}
     st.session_state.game_scores = []
     st.session_state.players_on_break = []
+    st.session_state.partner_history = {}
 
 # ============================================
 # PAGE 1: HOME
