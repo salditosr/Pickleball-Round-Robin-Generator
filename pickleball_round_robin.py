@@ -900,7 +900,7 @@ def show_play_page():
                     min_value=0,
                     max_value=30,
                     value=0,
-                    key=f"score_t1_{court_num}_{st.session_state.current_round}",
+                    key=f"single_t1_c{court_num}_r{st.session_state.current_round}",
                     label_visibility="collapsed"
                 )
                 
@@ -911,7 +911,7 @@ def show_play_page():
                     min_value=0,
                     max_value=30,
                     value=0,
-                    key=f"score_t2_{court_num}_{st.session_state.current_round}",
+                    key=f"single_t2_c{court_num}_r{st.session_state.current_round}",
                     label_visibility="collapsed"
                 )
                 
@@ -1044,7 +1044,7 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"grp_score_t1_{court_num}_{current_idx}",
+                                    key=f"mg_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
@@ -1057,13 +1057,13 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"grp_score_t2_{court_num}_{current_idx}",
+                                    key=f"mg_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
                             st.markdown("")
                             
-                            if st.button("✅ Submit", key=f"grp_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                            if st.button("✅ Submit", key=f"mg_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
                                 if team1_score == 0 and team2_score == 0:
                                     st.error("Please enter scores!")
                                 else:
@@ -1151,7 +1151,7 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"pair_score_t1_{court_num}_{current_idx}",
+                                    key=f"fp_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
@@ -1164,13 +1164,13 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"pair_score_t2_{court_num}_{current_idx}",
+                                    key=f"fp_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
                             st.markdown("")
                             
-                            if st.button("✅ Submit", key=f"pair_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                            if st.button("✅ Submit", key=f"fp_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
                                 if team1_score == 0 and team2_score == 0:
                                     st.error("Please enter scores!")
                                 else:
@@ -1275,7 +1275,7 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"grp_score_t1_{court_num}_{current_idx}",
+                                    key=f"mg_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
@@ -1288,13 +1288,13 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"grp_score_t2_{court_num}_{current_idx}",
+                                    key=f"mg_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
                             st.markdown("")
                             
-                            if st.button("✅ Submit This Game", key=f"grp_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                            if st.button("✅ Submit This Game", key=f"mg_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
                                 if team1_score == 0 and team2_score == 0:
                                     st.error("Please enter scores!")
                                 else:
@@ -1383,7 +1383,7 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"pair_score_t1_{court_num}_{current_idx}",
+                                    key=f"fp_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
@@ -1396,13 +1396,13 @@ def show_play_page():
                                     min_value=0,
                                     max_value=30,
                                     value=0,
-                                    key=f"pair_score_t2_{court_num}_{current_idx}",
+                                    key=f"fp_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
                                     label_visibility="collapsed"
                                 )
                             
                             st.markdown("")
                             
-                            if st.button("✅ Submit This Game", key=f"pair_submit_{court_num}_{current_idx}", type="primary", use_container_width=True):
+                            if st.button("✅ Submit This Game", key=f"fp_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
                                 if team1_score == 0 and team2_score == 0:
                                     st.error("Please enter scores!")
                                 else:
@@ -1495,7 +1495,7 @@ def show_play_page():
                             min_value=0,
                             max_value=30,
                             value=0,
-                            key=f"score_t1_{court_num}_{st.session_state.current_round}",
+                            key=f"single_t1_c{court_num}_r{st.session_state.current_round}",
                             label_visibility="collapsed"
                         )
                     
@@ -1508,7 +1508,7 @@ def show_play_page():
                             min_value=0,
                             max_value=30,
                             value=0,
-                            key=f"score_t2_{court_num}_{st.session_state.current_round}",
+                            key=f"single_t2_c{court_num}_r{st.session_state.current_round}",
                             label_visibility="collapsed"
                         )
                     
