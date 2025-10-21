@@ -793,51 +793,7 @@ def show_format_selection_page():
 # ============================================
 
 def show_player_checkin_page():
-    # Get query parameters to check if this is a player check-in via QR code
-    query_params = st.query_params
-    join_code = query_params.get('join', None)
-    
-    # If someone scanned the QR code (has join parameter)
-    if join_code:
-        # Load the event data for this code
-        event_data = load_event_data(join_code)
-        
-        if event_data:
-            # PLAYER CHECK-IN VIEW
-            st.title("🏓 " + event_data['event_name'])
-            st.markdown("---")
-            st.markdown("## Check In")
-            st.markdown(f"### Event: {event_data['event_name']}")
-            
-            player_name = st.text_input("Enter your name:", placeholder="First and Last Name")
-            
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button("✅ Check In", type="primary", use_container_width=True):
-                    if player_name and player_name.strip():
-                        if add_player_to_event(join_code, player_name):
-                            st.success(f"✅ Welcome, {player_name}! You're checked in.")
-                            st.balloons()
-                            st.markdown("---")
-                            st.info("📱 You can close this page now")
-                        else:
-                            st.error("Unable to check in. The event may be full or there was an error.")
-                    else:
-                        st.error("Please enter your name")
-            
-            st.markdown("---")
-            
-            # Show current player count
-            current_players = event_data.get('players', [])
-            st.info(f"👥 {len(current_players)} players checked in so far")
-            
-        else:
-            st.error("❌ Event not found. Please check the code and try again.")
-            st.info("Make sure you scanned the correct QR code or entered the right event code.")
-        
-        return  # Exit here for player view
-    
-    # ORGANIZER VIEW (no join code in URL)
+    """Organizer view - Show QR code and manage players"""
     st.title("🏓 " + st.session_state.event_name)
     
     if st.button("← Back"):
@@ -871,9 +827,9 @@ def show_player_checkin_page():
         st.image(buf, caption="Scan to Check In", width=300)
         
         st.markdown("---")
-        st.markdown("### Share This URL")
+        st.markdown("### Share This Link")
         st.code(check_in_url, language=None)
-        st.caption("Or share the event code: " + st.session_state.event_code)
+        st.caption(f"Event Code: **{st.session_state.event_code}**")
     
     with col2:
         # Load current players from event data
@@ -1430,7 +1386,103 @@ def show_standings_page():
 # MAIN APP ROUTER
 # ============================================
 
+# ============================================
+# PLAYER REGISTRATION PAGE (via QR Code)
+# ============================================
+
+def show_player_registration_page(event_code):
+    """Dedicated page for players to check in via QR code"""
+    # Load the event data for this code
+    event_data = load_event_data(event_code)
+    
+    if not event_data:
+        st.error("❌ Event not found")
+        st.info("The event code may be incorrect or the event may have ended.")
+        st.stop()
+    
+    # Show a clean registration form
+    st.title("🏓 Player Check-In")
+    st.markdown("---")
+    
+    # Event name in a nice box
+    st.markdown(f"""
+    <div style='background-color: #E3F2FD; padding: 20px; border-radius: 10px; border: 2px solid #4A90E2; margin-bottom: 20px;'>
+        <h2 style='margin: 0; color: #1976D2; text-align: center;'>{event_data['event_name']}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### Enter Your Information")
+    st.markdown("")
+    
+    # Check if event is full
+    current_players = event_data.get('players', [])
+    player_cap = event_data.get('player_cap', 100)
+    spots_left = player_cap - len(current_players)
+    
+    if spots_left <= 0:
+        st.error("🚫 This event is full!")
+        st.info(f"All {player_cap} spots have been filled.")
+        st.stop()
+    
+    # Show spots remaining
+    st.info(f"👥 {len(current_players)}/{player_cap} players checked in • {spots_left} spots remaining")
+    st.markdown("")
+    
+    # Name input
+    player_name = st.text_input(
+        "Your Name:",
+        placeholder="First and Last Name",
+        help="Enter your full name as you want it to appear"
+    )
+    
+    st.markdown("")
+    
+    # Check in button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("✅ Check In", type="primary", use_container_width=True, key="player_checkin"):
+            if not player_name or not player_name.strip():
+                st.error("⚠️ Please enter your name")
+            elif player_name.strip() in current_players:
+                st.warning(f"👋 {player_name} is already checked in!")
+            else:
+                # Add player to event
+                if add_player_to_event(event_code, player_name.strip()):
+                    st.success(f"✅ Welcome, {player_name}!")
+                    st.balloons()
+                    st.markdown("---")
+                    st.markdown("""
+                    <div style='background-color: #E8F5E9; padding: 20px; border-radius: 10px; text-align: center;'>
+                        <h3 style='color: #2E7D32; margin: 0;'>You're All Set! 🎉</h3>
+                        <p style='margin: 10px 0 0 0;'>You can close this page now. See you at the tournament!</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.error("❌ Unable to check in. Please try again.")
+    
+    st.markdown("---")
+    
+    # Show who else is checked in
+    if current_players:
+        with st.expander(f"👥 See who's checked in ({len(current_players)} players)", expanded=False):
+            for i, player in enumerate(current_players, 1):
+                st.markdown(f"{i}. {player}")
+
+# ============================================
+# MAIN APP ROUTER
+# ============================================
+
 def main():
+    # FIRST: Check if this is a player registration (via QR code)
+    query_params = st.query_params
+    join_code = query_params.get('join', None)
+    
+    if join_code:
+        # Show the dedicated player registration page
+        show_player_registration_page(join_code)
+        return  # Exit here - don't show any other pages
+    
+    # NORMAL FLOW: For organizers
     page = st.session_state.page
     
     if page == 'home':
@@ -1446,3 +1498,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
