@@ -618,7 +618,7 @@ def generate_new_round():
 # ============================================
 
 def show_home_page():
-    st.title("🏓 Pickleball Tournament Pro")
+    st.title("🏓 Round Robin Generator")
     
     st.markdown("---")
     
