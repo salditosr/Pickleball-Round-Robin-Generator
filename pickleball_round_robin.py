@@ -911,6 +911,8 @@ def show_play_page():
         if st.button("🎲 Generate Round 1", type="primary", use_container_width=True):
             st.session_state.current_round = 1
             generate_new_round()
+            # Reset sit-out selections for the next round
+            st.session_state.players_on_break = []
             st.rerun()
         return
     
@@ -1523,6 +1525,8 @@ def show_standings_page():
         if st.button("➡️ Generate Next Round", type="primary", use_container_width=True):
             st.session_state.current_round += 1
             generate_new_round()
+            # Reset sit-out selections for the next round
+            st.session_state.players_on_break = []
             go_to_page('play')
     
     with col_b:
