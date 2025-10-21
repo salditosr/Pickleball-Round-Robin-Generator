@@ -249,6 +249,277 @@ def create_popcorn_matchups(players, num_courts, fixed_partners=None):
         
         return games, sitting
 
+def create_popcorn_matchups(players, num_courts, fixed_partners=None):
+    """Popcorn: Random matchups"""
+    if fixed_partners:
+        available_pairs = list(fixed_partners.items())
+        random.shuffle(available_pairs)
+        
+        games = []
+        for i in range(0, len(available_pairs) - 1, 2):
+            if i + 1 < len(available_pairs):
+                pair1 = available_pairs[i]
+                pair2 = available_pairs[i + 1]
+                
+                if len(games) < num_courts:
+                    games.append({
+                        'court': len(games) + 1,
+                        'team1': [pair1[0], pair1[1]],
+                        'team2': [pair2[0], pair2[1]]
+                    })
+        
+        sitting_out = []
+        if len(available_pairs) % 2 == 1:
+            last_pair = available_pairs[-1]
+            sitting_out = [last_pair[0], last_pair[1]]
+        
+        return games, sitting_out
+    else:
+        shuffled = players.copy()
+        random.shuffle(shuffled)
+        
+        players_per_round = num_courts * 4
+        playing = shuffled[:players_per_round]
+        sitting = shuffled[players_per_round:]
+        
+        games = []
+        for i in range(0, len(playing), 4):
+            if i + 3 < len(playing):
+                four = playing[i:i+4]
+                games.append({
+                    'court': (i // 4) + 1,
+                    'team1': [four[0], four[1]],
+                    'team2': [four[2], four[3]]
+                })
+        
+        return games, sitting
+
+def create_gauntlet_matchups(players, num_courts, scores, fixed_partners=None):
+    """Gauntlet: Winners face harder opponents"""
+    player_rankings = []
+    for player in players:
+        if player in scores:
+            wins = scores[player]['wins']
+            games = scores[player]['games_played']
+            win_pct = calculate_win_percentage(wins, games)
+        else:
+            win_pct = 0
+        player_rankings.append((player, win_pct))
+    
+    player_rankings.sort(key=lambda x: x[1], reverse=True)
+    sorted_players = [p[0] for p in player_rankings]
+    
+    if fixed_partners:
+        pair_rankings = []
+        processed = set()
+        
+        for player in sorted_players:
+            if player not in processed and player in fixed_partners:
+                partner = fixed_partners[player]
+                if partner in scores and player in scores:
+                    avg_win_pct = (
+                        calculate_win_percentage(scores[player]['wins'], scores[player]['games_played']) +
+                        calculate_win_percentage(scores[partner]['wins'], scores[partner]['games_played'])
+                    ) / 2
+                else:
+                    avg_win_pct = 0
+                
+                pair_rankings.append(([player, partner], avg_win_pct))
+                processed.add(player)
+                processed.add(partner)
+        
+        pair_rankings.sort(key=lambda x: x[1], reverse=True)
+        
+        games = []
+        for i in range(0, len(pair_rankings) - 1, 2):
+            if i + 1 < len(pair_rankings) and len(games) < num_courts:
+                games.append({
+                    'court': len(games) + 1,
+                    'team1': pair_rankings[i][0],
+                    'team2': pair_rankings[i + 1][0]
+                })
+        
+        sitting_out = []
+        if len(pair_rankings) % 2 == 1:
+            sitting_out = pair_rankings[-1][0]
+        
+        return games, sitting_out
+    else:
+        shuffled = sorted_players.copy()
+        random.shuffle(shuffled)
+        
+        players_per_round = num_courts * 4
+        playing = shuffled[:players_per_round]
+        sitting = shuffled[players_per_round:]
+        
+        games = []
+        for i in range(0, len(playing), 4):
+            if i + 3 < len(playing):
+                four = playing[i:i+4]
+                games.append({
+                    'court': (i // 4) + 1,
+                    'team1': [four[0], four[1]],
+                    'team2': [four[2], four[3]]
+                })
+        
+        return games, sitting
+
+def create_up_down_river_groups(players, num_courts, scores, fixed_partners=None):
+    """Up & Down: Players seeded to courts"""
+    player_rankings = []
+    for player in players:
+        if player in scores:
+            win_pct = calculate_win_percentage(scores[player]['wins'], scores[player]['games_played'])
+        else:
+            win_pct = 0
+        player_rankings.append((player, win_pct))
+    
+    player_rankings.sort(key=lambda x: x[1], reverse=True)
+    sorted_players = [p[0] for p in player_rankings]
+    
+    if fixed_partners:
+        pair_groups = []
+        processed = set()
+        
+        for player in sorted_players:
+            if player not in processed and player in fixed_partners:
+                partner = fixed_partners[player]
+                pair_groups.append([player, partner])
+                processed.add(player)
+                processed.add(partner)
+        
+        court_assignments = []
+        for i in range(0, len(pair_groups), 2):
+            if i + 1 < len(pair_groups) and len(court_assignments) < num_courts:
+                court_assignments.append({
+                    'court': len(court_assignments) + 1,
+                    'pairs': [pair_groups[i], pair_groups[i + 1]]
+                })
+        
+        return court_assignments
+    else:
+        players_per_court = max(4, len(sorted_players) // num_courts)
+        
+        court_assignments = []
+        for i in range(num_courts):
+            start = i * players_per_court
+            if i == num_courts - 1:
+                court_players = sorted_players[start:]
+            else:
+                court_players = sorted_players[start:start + players_per_court]
+            
+            if len(court_players) >= 4:
+                court_assignments.append({
+                    'court': i + 1,
+                    'players': court_players
+                })
+        
+        return court_assignments
+
+def generate_court_games(court_players):
+    """Generate all partnership combinations for a court"""
+    games = []
+    all_pairs = list(combinations(court_players, 2))
+    
+    used_games = set()
+    for i, pair1 in enumerate(all_pairs):
+        for pair2 in all_pairs[i+1:]:
+            if len(set(pair1 + pair2)) == 4:
+                game_id = tuple(sorted(pair1 + pair2))
+                if game_id not in used_games:
+                    games.append({
+                        'team1': list(pair1),
+                        'team2': list(pair2)
+                    })
+                    used_games.add(game_id)
+    
+    return games
+
+def create_scramble_groups(players, num_courts):
+    """Scramble: Random groups stay on court"""
+    shuffled = players.copy()
+    random.shuffle(shuffled)
+    
+    players_per_court = max(4, len(shuffled) // num_courts)
+    
+    groups = []
+    for i in range(num_courts):
+        start = i * players_per_court
+        if i == num_courts - 1:
+            court_players = shuffled[start:]
+        else:
+            court_players = shuffled[start:start + players_per_court]
+        
+        if len(court_players) >= 4:
+            groups.append({
+                'court': i + 1,
+                'players': court_players
+            })
+    
+    return groups
+
+def create_mixed_madness_matchups(players, num_courts, gender_dict):
+    """Mixed Madness: Random mixed doubles"""
+    males = [p for p in players if gender_dict.get(p) == 'M']
+    females = [p for p in players if gender_dict.get(p) == 'F']
+    
+    random.shuffle(males)
+    random.shuffle(females)
+    
+    games = []
+    sitting_out = []
+    
+    min_pairs = min(len(males), len(females))
+    
+    for i in range(0, min_pairs - 1, 2):
+        if i + 1 < min_pairs and len(games) < num_courts:
+            games.append({
+                'court': len(games) + 1,
+                'team1': [males[i], females[i]],
+                'team2': [males[i + 1], females[i + 1]]
+            })
+    
+    if min_pairs % 2 == 1:
+        sitting_out.extend([males[min_pairs - 1], females[min_pairs - 1]])
+    
+    for i in range(min_pairs, len(males)):
+        sitting_out.append(males[i])
+    for i in range(min_pairs, len(females)):
+        sitting_out.append(females[i])
+    
+    return games, sitting_out
+
+def create_cream_crop_groups(players, num_courts, scores):
+    """Cream of the Crop: Rising stars format"""
+    player_rankings = []
+    for player in players:
+        if player in scores:
+            win_pct = calculate_win_percentage(scores[player]['wins'], scores[player]['games_played'])
+        else:
+            win_pct = 0
+        player_rankings.append((player, win_pct))
+    
+    player_rankings.sort(key=lambda x: x[1], reverse=True)
+    sorted_players = [p[0] for p in player_rankings]
+    
+    players_per_court = max(4, len(sorted_players) // num_courts)
+    
+    court_assignments = []
+    for i in range(num_courts):
+        start = i * players_per_court
+        if i == num_courts - 1:
+            court_players = sorted_players[start:]
+        else:
+            court_players = sorted_players[start:start + players_per_court]
+        
+        if len(court_players) >= 4:
+            court_assignments.append({
+                'court': i + 1,
+                'players': court_players
+            })
+    
+    return court_assignments
+
 # Shortened helper functions for brevity - keeping only essential ones
 def go_to_page(page_name):
     st.session_state.page = page_name
@@ -268,6 +539,7 @@ def generate_new_round():
     players = [p for p in st.session_state.players if p not in st.session_state.players_on_break]
     num_courts = st.session_state.num_courts
     format_choice = st.session_state.format_choice
+    fixed_partners = st.session_state.fixed_partners if st.session_state.partner_mode == "Fixed Partners" else None
     
     for player in players:
         if player not in st.session_state.scores:
@@ -275,6 +547,7 @@ def generate_new_round():
                 'wins': 0,
                 'losses': 0,
                 'games_played': 0,
+                'points': 0,
                 'points_for': 0,
                 'points_against': 0,
                 'point_diff': 0
@@ -285,8 +558,56 @@ def generate_new_round():
         st.session_state.current_games = games
         st.session_state.sitting_out = sitting
         st.session_state.court_groups = []
-    else:
-        games, sitting = create_popcorn_matchups(players, num_courts)
+        
+    elif format_choice == "Popcorn":
+        games, sitting = create_popcorn_matchups(players, num_courts, fixed_partners)
+        st.session_state.current_games = games
+        st.session_state.sitting_out = sitting
+        st.session_state.court_groups = []
+        
+    elif format_choice == "Gauntlet":
+        games, sitting = create_gauntlet_matchups(players, num_courts, st.session_state.scores, fixed_partners)
+        st.session_state.current_games = games
+        st.session_state.sitting_out = sitting
+        st.session_state.court_groups = []
+        
+    elif format_choice == "Up and Down the River":
+        groups = create_up_down_river_groups(players, num_courts, st.session_state.scores, fixed_partners)
+        st.session_state.court_groups = groups
+        st.session_state.current_games = []
+        st.session_state.court_game_index = {g['court']: 0 for g in groups}
+        
+        # Set court points
+        for i, group in enumerate(groups):
+            st.session_state.court_points[group['court']] = num_courts - i
+    
+    elif format_choice == "Claim the Throne":
+        games, sitting = create_gauntlet_matchups(players, num_courts, st.session_state.scores, fixed_partners)
+        st.session_state.current_games = games
+        st.session_state.sitting_out = sitting
+        
+        # Weighted points
+        for game in games:
+            st.session_state.court_points[game['court']] = num_courts - game['court'] + 1
+    
+    elif format_choice in ["Double Header", "Scramble"]:
+        groups = create_scramble_groups(players, num_courts)
+        st.session_state.court_groups = groups
+        st.session_state.current_games = []
+        st.session_state.court_game_index = {g['court']: 0 for g in groups}
+    
+    elif format_choice == "Cream of the Crop":
+        groups = create_cream_crop_groups(players, num_courts, st.session_state.scores)
+        st.session_state.court_groups = groups
+        st.session_state.current_games = []
+        st.session_state.court_game_index = {g['court']: 0 for g in groups}
+        
+        # Set court points
+        for i, group in enumerate(groups):
+            st.session_state.court_points[group['court']] = num_courts - i
+    
+    elif format_choice == "Mixed Madness":
+        games, sitting = create_mixed_madness_matchups(players, num_courts, st.session_state.gender_assignments)
         st.session_state.current_games = games
         st.session_state.sitting_out = sitting
         st.session_state.court_groups = []
@@ -396,36 +717,72 @@ def show_format_selection_page():
     st.markdown("---")
     st.markdown("## Choose Your Format")
     
-    format_options = {
-        "Classic Round Robin": {
+    # Define formats in order - Classic Round Robin and Gauntlet first
+    from collections import OrderedDict
+    format_options = OrderedDict([
+        ("Classic Round Robin", {
             "icon": "🎯",
             "short": "Maximum Partner Variety",
             "description": "Priority is getting everyone to play with people who haven't been partners yet. Best for maximizing partner variety."
-        },
-        "Popcorn": {
+        }),
+        ("Gauntlet", {
+            "icon": "⚔️",
+            "short": "Competitive",
+            "description": "Winners face harder opponents, losers face easier ones. Seeded matchups. Perfect for competitive balance."
+        }),
+        ("Popcorn", {
             "icon": "🍿",
             "short": "Random & Social",
             "description": "Random matchups every round. Mix with as many players as possible. Great for social play!"
-        },
-    }
+        }),
+        ("Up and Down the River", {
+            "icon": "🏔️",
+            "short": "Court Movement",
+            "description": "Players seeded to courts, play 3-5 games, winners move up courts. Minimizes court switching."
+        }),
+        ("Claim the Throne", {
+            "icon": "👑",
+            "short": "Classic Weighted",
+            "description": "Winners move up, losers move down. Higher courts worth more points. 1 game per round."
+        }),
+        ("Cream of the Crop", {
+            "icon": "🌟",
+            "short": "Rising Stars",
+            "description": "Balanced groups initially, top performers rise to Court #1. Multiple games per round."
+        }),
+        ("Double Header", {
+            "icon": "🎯",
+            "short": "Everyone Partners Twice",
+            "description": "Partner with everyone twice. 4 players per court. 6-9 games per round. Perfect for 2-hour sessions."
+        }),
+        ("Scramble", {
+            "icon": "🎲",
+            "short": "Group Play",
+            "description": "Random groups stay on court for 3-5 games. Minimizes waiting and switching."
+        }),
+        ("Mixed Madness", {
+            "icon": "🎭",
+            "short": "Mixed Doubles",
+            "description": "Random mixed doubles matchups. Handles uneven gender ratios. Social and fun!"
+        })
+    ])
     
     selected_format = None
     
-    for format_name, info in format_options.items():
-        with st.container():
-            col1, col2 = st.columns([4, 1])
-            
-            with col1:
+    # Display formats in a 2-column grid
+    cols = st.columns(2)
+    
+    for idx, (format_name, info) in enumerate(format_options.items()):
+        with cols[idx % 2]:
+            with st.container():
                 st.markdown(f"### {info['icon']} {format_name}")
                 st.markdown(f"**{info['short']}**")
-                st.markdown(info['description'])
-            
-            with col2:
-                st.markdown("")
-                if st.button("Select", key=f"select_{format_name}", use_container_width=True):
+                st.caption(info['description'])
+                
+                if st.button(f"Select", key=f"select_{format_name}", use_container_width=True):
                     selected_format = format_name
-            
-            st.markdown("")
+                
+                st.markdown("")
     
     if selected_format:
         st.session_state.format_choice = selected_format
@@ -721,6 +1078,241 @@ def show_play_page():
                         })
                     
                     st.session_state.pending_scores = {}
+                    go_to_page('standings')
+    
+    # DISPLAY GROUPS - Multi-game formats (Up/Down River, Scramble, Double Header, Cream of Crop)
+    elif st.session_state.court_groups:
+        st.markdown("### Complete games one at a time")
+        
+        all_complete = True
+        
+        for group in st.session_state.court_groups:
+            court_num = group['court']
+            
+            if 'players' in group:
+                players_list = group['players']
+                all_games = generate_court_games(players_list)
+                current_idx = st.session_state.court_game_index.get(court_num, 0)
+                
+                court_complete = current_idx >= len(all_games)
+                if not court_complete:
+                    all_complete = False
+                
+                with st.expander(
+                    f"🏟️ Court {court_num} — {', '.join(players_list)}" + 
+                    (" ✅ COMPLETE" if court_complete else f" — Game {current_idx + 1}/{len(all_games)}"),
+                    expanded=not court_complete
+                ):
+                    if not court_complete:
+                        game = all_games[current_idx]
+                        
+                        st.markdown(f"**Game {current_idx + 1} of {len(all_games)}**")
+                        st.markdown("")
+                        
+                        col_team1, col_score, col_team2 = st.columns([2, 1.5, 2])
+                        
+                        with col_team1:
+                            st.markdown("### 🔵 Team 1")
+                            st.markdown(f"**{game['team1'][0]}**")
+                            st.markdown(f"**{game['team1'][1]}**")
+                        
+                        with col_score:
+                            st.markdown("### Score")
+                            
+                            col_s1, col_vs, col_s2 = st.columns([1, 0.3, 1])
+                            
+                            with col_s1:
+                                team1_score = st.number_input(
+                                    "Team 1",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=None,
+                                    key=f"mg_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
+                                )
+                            
+                            with col_vs:
+                                st.markdown("## -")
+                            
+                            with col_s2:
+                                team2_score = st.number_input(
+                                    "Team 2",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=None,
+                                    key=f"mg_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
+                                )
+                            
+                            st.markdown("")
+                            
+                            if st.button("✅ Submit", key=f"mg_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
+                                    st.error("Please enter scores!")
+                                else:
+                                    team1_won = team1_score > team2_score
+                                    
+                                    for player in game['team1']:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team1_score
+                                        st.session_state.scores[player]['points_against'] += team2_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    for player in game['team2']:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team2_score
+                                        st.session_state.scores[player]['points_against'] += team1_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if not team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    st.session_state.game_scores.append({
+                                        'round': st.session_state.current_round,
+                                        'court': court_num,
+                                        'team1': game['team1'],
+                                        'team2': game['team2'],
+                                        'score': [team1_score, team2_score]
+                                    })
+                                    
+                                    st.session_state.court_game_index[court_num] += 1
+                                    st.rerun()
+                        
+                        with col_team2:
+                            st.markdown("### 🔴 Team 2")
+                            st.markdown(f"**{game['team2'][0]}**")
+                            st.markdown(f"**{game['team2'][1]}**")
+                    else:
+                        st.success("✅ All games completed!")
+            
+            elif 'pairs' in group:
+                pair1, pair2 = group['pairs']
+                current_idx = st.session_state.court_game_index.get(court_num, 0)
+                max_games = 5
+                
+                court_complete = current_idx >= max_games
+                if not court_complete:
+                    all_complete = False
+                
+                with st.expander(
+                    f"🏟️ Court {court_num}" + 
+                    (" ✅ COMPLETE" if court_complete else f" — Game {current_idx + 1}/{max_games}"),
+                    expanded=not court_complete
+                ):
+                    st.markdown(f"**{pair1[0]} & {pair1[1]}** vs **{pair2[0]} & {pair2[1]}**")
+                    st.markdown("")
+                    
+                    if not court_complete:
+                        st.markdown(f"**Game {current_idx + 1} of {max_games}**")
+                        
+                        col_team1, col_score, col_team2 = st.columns([2, 1.5, 2])
+                        
+                        with col_team1:
+                            st.markdown("### 🔵 Team 1")
+                            st.markdown(f"**{pair1[0]}**")
+                            st.markdown(f"**{pair1[1]}**")
+                        
+                        with col_score:
+                            st.markdown("### Score")
+                            
+                            col_s1, col_vs, col_s2 = st.columns([1, 0.3, 1])
+                            
+                            with col_s1:
+                                team1_score = st.number_input(
+                                    "Team 1",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=None,
+                                    key=f"fp_t1_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
+                                )
+                            
+                            with col_vs:
+                                st.markdown("## -")
+                            
+                            with col_s2:
+                                team2_score = st.number_input(
+                                    "Team 2",
+                                    min_value=0,
+                                    max_value=30,
+                                    value=None,
+                                    key=f"fp_t2_c{court_num}_g{current_idx}_r{st.session_state.current_round}",
+                                    label_visibility="collapsed",
+                                    placeholder="Score"
+                                )
+                            
+                            st.markdown("")
+                            
+                            if st.button("✅ Submit", key=f"fp_submit_c{court_num}_g{current_idx}_r{st.session_state.current_round}", type="primary", use_container_width=True):
+                                if (team1_score is None or team1_score == 0) and (team2_score is None or team2_score == 0):
+                                    st.error("Please enter scores!")
+                                else:
+                                    team1_won = team1_score > team2_score
+                                    
+                                    for player in pair1:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team1_score
+                                        st.session_state.scores[player]['points_against'] += team2_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    for player in pair2:
+                                        st.session_state.scores[player]['games_played'] += 1
+                                        st.session_state.scores[player]['points_for'] += team2_score
+                                        st.session_state.scores[player]['points_against'] += team1_score
+                                        st.session_state.scores[player]['point_diff'] = (
+                                            st.session_state.scores[player]['points_for'] - 
+                                            st.session_state.scores[player]['points_against']
+                                        )
+                                        if not team1_won:
+                                            st.session_state.scores[player]['wins'] += 1
+                                        else:
+                                            st.session_state.scores[player]['losses'] += 1
+                                    
+                                    st.session_state.game_scores.append({
+                                        'round': st.session_state.current_round,
+                                        'court': court_num,
+                                        'team1': pair1,
+                                        'team2': pair2,
+                                        'score': [team1_score, team2_score]
+                                    })
+                                    
+                                    st.session_state.court_game_index[court_num] += 1
+                                    st.rerun()
+                        
+                        with col_team2:
+                            st.markdown("### 🔴 Team 2")
+                            st.markdown(f"**{pair2[0]}**")
+                            st.markdown(f"**{pair2[1]}**")
+                    else:
+                        st.success("✅ All games completed on this court!")
+        
+        # All courts complete
+        if all_complete:
+            st.markdown("")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("📊 Go to Standings", type="primary", use_container_width=True):
                     go_to_page('standings')
 
 # ============================================
