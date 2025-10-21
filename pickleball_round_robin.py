@@ -1366,6 +1366,111 @@ def show_standings_page():
     
     st.markdown("---")
     
+    # Player Management Section
+    with st.expander("👥 Manage Players (Remove or Replace)", expanded=False):
+        st.markdown("### Current Players")
+        st.caption("Remove players who left early or replace players with substitutes")
+        
+        if st.session_state.players:
+            for i, player in enumerate(st.session_state.players):
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                
+                with col1:
+                    st.markdown(f"**{player}**")
+                
+                with col2:
+                    # Replace player
+                    new_name = st.text_input(
+                        "Replace with:",
+                        placeholder="New player name",
+                        key=f"replace_{i}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col3:
+                    if st.button("🔄 Replace", key=f"replace_btn_{i}"):
+                        if new_name and new_name.strip():
+                            old_name = player
+                            new_name = new_name.strip()
+                            
+                            # Update players list
+                            st.session_state.players[i] = new_name
+                            
+                            # Update scores dictionary
+                            if old_name in st.session_state.scores:
+                                st.session_state.scores[new_name] = st.session_state.scores.pop(old_name)
+                            
+                            # Update event data
+                            if st.session_state.event_code:
+                                event_data = load_event_data(st.session_state.event_code)
+                                if event_data:
+                                    event_data['players'] = st.session_state.players
+                                    save_event_data(st.session_state.event_code, event_data)
+                            
+                            # Update any fixed partners
+                            if old_name in st.session_state.fixed_partners:
+                                partner = st.session_state.fixed_partners[old_name]
+                                del st.session_state.fixed_partners[old_name]
+                                st.session_state.fixed_partners[new_name] = partner
+                                # Update the partner's reference
+                                if partner in st.session_state.fixed_partners:
+                                    st.session_state.fixed_partners[partner] = new_name
+                            
+                            # Update partner history
+                            if old_name in st.session_state.partner_history:
+                                st.session_state.partner_history[new_name] = st.session_state.partner_history.pop(old_name)
+                            
+                            # Update all partner history references
+                            for p in st.session_state.partner_history:
+                                if old_name in st.session_state.partner_history[p]:
+                                    st.session_state.partner_history[p].discard(old_name)
+                                    st.session_state.partner_history[p].add(new_name)
+                            
+                            st.success(f"✅ Replaced {old_name} with {new_name}")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Please enter a new player name")
+                
+                with col4:
+                    if st.button("❌", key=f"remove_player_{i}"):
+                        # Remove player
+                        removed_player = st.session_state.players.pop(i)
+                        
+                        # Remove from scores
+                        if removed_player in st.session_state.scores:
+                            del st.session_state.scores[removed_player]
+                        
+                        # Update event data
+                        if st.session_state.event_code:
+                            event_data = load_event_data(st.session_state.event_code)
+                            if event_data:
+                                event_data['players'] = st.session_state.players
+                                save_event_data(st.session_state.event_code, event_data)
+                        
+                        # Remove from fixed partners
+                        if removed_player in st.session_state.fixed_partners:
+                            partner = st.session_state.fixed_partners[removed_player]
+                            del st.session_state.fixed_partners[removed_player]
+                            if partner in st.session_state.fixed_partners:
+                                del st.session_state.fixed_partners[partner]
+                        
+                        # Remove from partner history
+                        if removed_player in st.session_state.partner_history:
+                            del st.session_state.partner_history[removed_player]
+                        
+                        # Remove from all partner history references
+                        for p in st.session_state.partner_history:
+                            st.session_state.partner_history[p].discard(removed_player)
+                        
+                        st.success(f"✅ Removed {removed_player}")
+                        st.rerun()
+                
+                st.markdown("")
+        else:
+            st.info("No players in tournament")
+    
+    st.markdown("---")
+    
     col_a, col_b, col_c = st.columns(3)
     
     with col_a:
