@@ -868,10 +868,6 @@ def show_player_checkin_page():
     
     st.markdown("---")
     
-    # Automatic refresh every 5 seconds to show new players checking in
-    time.sleep(5)
-    st.rerun()
-    
     # Start tournament button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -880,6 +876,10 @@ def show_player_checkin_page():
                 go_to_page('play')
         else:
             st.warning("⚠️ Need at least 4 players to start")
+    
+    # Automatic refresh every 5 seconds to show new players checking in
+    time.sleep(5)
+    st.rerun()
 
 # ============================================
 # PAGE 4: PLAY TOURNAMENT  
