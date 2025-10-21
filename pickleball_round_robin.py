@@ -16,7 +16,7 @@ import time
 # PAGE CONFIGURATION
 # ============================================
 st.set_page_config(
-    page_title="Pickleball Tournament Pro",
+    page_title="Round Robin Generator",
     page_icon="🏓",
     layout="wide"
 )
