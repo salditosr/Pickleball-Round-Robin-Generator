@@ -1471,6 +1471,52 @@ def show_standings_page():
     
     st.markdown("---")
     
+    # Volunteer to Sit Out Section
+    with st.expander("⏸️ Volunteer to Sit Out Next Round", expanded=False):
+        st.markdown("### Players Taking a Break")
+        st.caption("Select players who want to sit out the next round")
+        
+        if st.session_state.players:
+            # Show currently sitting out
+            if st.session_state.players_on_break:
+                st.info(f"🪑 Currently sitting out: {', '.join(st.session_state.players_on_break)}")
+                st.markdown("")
+            
+            # Create checkboxes for each player
+            for player in st.session_state.players:
+                is_on_break = player in st.session_state.players_on_break
+                
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    if st.checkbox(
+                        f"{player}",
+                        value=is_on_break,
+                        key=f"break_{player}"
+                    ):
+                        # Add to break list
+                        if player not in st.session_state.players_on_break:
+                            st.session_state.players_on_break.append(player)
+                    else:
+                        # Remove from break list
+                        if player in st.session_state.players_on_break:
+                            st.session_state.players_on_break.remove(player)
+                
+                with col2:
+                    if is_on_break:
+                        st.markdown("⏸️")
+            
+            # Show count
+            active_players = len([p for p in st.session_state.players if p not in st.session_state.players_on_break])
+            st.markdown("")
+            st.success(f"✅ {active_players} players will play in the next round")
+            
+            if active_players < 4:
+                st.warning("⚠️ Need at least 4 active players to generate a round")
+        else:
+            st.info("No players in tournament")
+    
+    st.markdown("---")
+    
     col_a, col_b, col_c = st.columns(3)
     
     with col_a:
