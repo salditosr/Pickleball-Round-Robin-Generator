@@ -10,6 +10,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 import string
+import time
 
 # ============================================
 # PAGE CONFIGURATION
@@ -867,9 +868,9 @@ def show_player_checkin_page():
     
     st.markdown("---")
     
-    # Auto-refresh option
-    if st.checkbox("Auto-refresh (updates every 5 seconds)", value=False):
-        st.rerun()
+    # Automatic refresh every 5 seconds to show new players checking in
+    time.sleep(5)
+    st.rerun()
     
     # Start tournament button
     col1, col2, col3 = st.columns([1, 2, 1])
