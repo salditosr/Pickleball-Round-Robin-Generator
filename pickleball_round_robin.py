@@ -793,119 +793,136 @@ def show_format_selection_page():
 # ============================================
 
 def show_player_checkin_page():
+    # Get query parameters to check if this is a player check-in via QR code
+    query_params = st.query_params
+    join_code = query_params.get('join', None)
+    
+    # If someone scanned the QR code (has join parameter)
+    if join_code:
+        # Load the event data for this code
+        event_data = load_event_data(join_code)
+        
+        if event_data:
+            # PLAYER CHECK-IN VIEW
+            st.title("🏓 " + event_data['event_name'])
+            st.markdown("---")
+            st.markdown("## Check In")
+            st.markdown(f"### Event: {event_data['event_name']}")
+            
+            player_name = st.text_input("Enter your name:", placeholder="First and Last Name")
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("✅ Check In", type="primary", use_container_width=True):
+                    if player_name and player_name.strip():
+                        if add_player_to_event(join_code, player_name):
+                            st.success(f"✅ Welcome, {player_name}! You're checked in.")
+                            st.balloons()
+                            st.markdown("---")
+                            st.info("📱 You can close this page now")
+                        else:
+                            st.error("Unable to check in. The event may be full or there was an error.")
+                    else:
+                        st.error("Please enter your name")
+            
+            st.markdown("---")
+            
+            # Show current player count
+            current_players = event_data.get('players', [])
+            st.info(f"👥 {len(current_players)} players checked in so far")
+            
+        else:
+            st.error("❌ Event not found. Please check the code and try again.")
+            st.info("Make sure you scanned the correct QR code or entered the right event code.")
+        
+        return  # Exit here for player view
+    
+    # ORGANIZER VIEW (no join code in URL)
     st.title("🏓 " + st.session_state.event_name)
     
     if st.button("← Back"):
         go_to_page('format_selection')
     
     st.markdown("---")
+    st.markdown("## Player Check-In")
     
-    # Get query parameters to check if this is a player check-in
-    query_params = st.query_params
-    is_player_view = 'join' in query_params and query_params.get('join') == st.session_state.event_code
+    # Generate QR Code
+    col1, col2 = st.columns([1, 1])
     
-    if is_player_view:
-        # PLAYER CHECK-IN VIEW
-        st.markdown("## Check In")
-        st.markdown(f"### Event: {st.session_state.event_name}")
+    with col1:
+        st.markdown("### QR Code for Players")
         
-        player_name = st.text_input("Enter your name:", placeholder="First and Last Name")
+        # Get the current app URL
+        base_url = "https://pickleball-round-robin-generator-gdye9ixyhszt29qbtmsufy.streamlit.app"
+        check_in_url = f"{base_url}/?join={st.session_state.event_code}"
         
-        if st.button("✅ Check In", type="primary", use_container_width=True):
-            if player_name and player_name.strip():
-                if add_player_to_event(st.session_state.event_code, player_name):
-                    st.success(f"✅ Welcome, {player_name}! You're checked in.")
-                    st.balloons()
-                else:
-                    st.error("Unable to check in. Please try again.")
-            else:
-                st.error("Please enter your name")
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=4)
+        qr.add_data(check_in_url)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="#4A5568", back_color="white")
+        
+        # Convert to bytes
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        
+        st.image(buf, caption="Scan to Check In", width=300)
         
         st.markdown("---")
-        st.info("📱 You can close this page after checking in")
+        st.markdown("### Share This URL")
+        st.code(check_in_url, language=None)
+        st.caption("Or share the event code: " + st.session_state.event_code)
+    
+    with col2:
+        # Load current players from event data
+        event_data = load_event_data(st.session_state.event_code)
+        if event_data:
+            st.session_state.players = event_data['players']
         
-    else:
-        # ORGANIZER VIEW
-        st.markdown("## Player Check-In")
+        st.markdown(f"### Checked In Players ({len(st.session_state.players)}/{st.session_state.player_cap})")
         
-        # Generate QR Code
-        col1, col2 = st.columns([1, 1])
+        # Add player manually
+        manual_name = st.text_input("Add player manually:", placeholder="Player name", key="manual_add")
+        if st.button("➕ Add", key="add_manual"):
+            if manual_name and manual_name.strip():
+                if add_player_to_event(st.session_state.event_code, manual_name):
+                    st.success(f"Added {manual_name}")
+                    st.rerun()
         
-        with col1:
-            st.markdown("### QR Code for Players")
-            
-            # Get the current app URL
-            # In production, this would be your deployed URL
-            base_url = "https://pickleball-round-robin-generator-gdye9ixyhszt29qbtmsufy.streamlit.app"
-            check_in_url = f"{base_url}/?join={st.session_state.event_code}"
-            
-            # Generate QR code
-            qr = qrcode.QRCode(version=1, box_size=10, border=4)
-            qr.add_data(check_in_url)
-            qr.make(fit=True)
-            
-            img = qr.make_image(fill_color="#4A5568", back_color="white")
-            
-            # Convert to bytes
-            buf = BytesIO()
-            img.save(buf, format='PNG')
-            buf.seek(0)
-            
-            st.image(buf, caption="Scan to Check In", width=300)
-            
-            st.markdown("---")
-            st.markdown("### Event Code")
-            st.code(st.session_state.event_code, language=None)
-            st.caption("Players can also manually enter this code")
+        st.markdown("")
         
-        with col2:
-            # Load current players from event data
-            event_data = load_event_data(st.session_state.event_code)
-            if event_data:
-                st.session_state.players = event_data['players']
-            
-            st.markdown(f"### Checked In Players ({len(st.session_state.players)}/{st.session_state.player_cap})")
-            
-            # Add player manually
-            manual_name = st.text_input("Add player manually:", placeholder="Player name", key="manual_add")
-            if st.button("➕ Add", key="add_manual"):
-                if manual_name and manual_name.strip():
-                    if add_player_to_event(st.session_state.event_code, manual_name):
-                        st.success(f"Added {manual_name}")
+        # Show player list
+        if st.session_state.players:
+            for i, player in enumerate(st.session_state.players):
+                col_a, col_b = st.columns([3, 1])
+                with col_a:
+                    st.markdown(f"**{i+1}.** {player}")
+                with col_b:
+                    if st.button("❌", key=f"remove_{i}"):
+                        st.session_state.players.remove(player)
+                        event_data = load_event_data(st.session_state.event_code)
+                        event_data['players'] = st.session_state.players
+                        save_event_data(st.session_state.event_code, event_data)
                         st.rerun()
-            
-            st.markdown("")
-            
-            # Show player list
-            if st.session_state.players:
-                for i, player in enumerate(st.session_state.players):
-                    col_a, col_b = st.columns([3, 1])
-                    with col_a:
-                        st.markdown(f"**{i+1}.** {player}")
-                    with col_b:
-                        if st.button("❌", key=f"remove_{i}"):
-                            st.session_state.players.remove(player)
-                            event_data = load_event_data(st.session_state.event_code)
-                            event_data['players'] = st.session_state.players
-                            save_event_data(st.session_state.event_code, event_data)
-                            st.rerun()
-            else:
-                st.info("No players checked in yet")
-        
-        st.markdown("---")
-        
-        # Auto-refresh option
-        if st.checkbox("Auto-refresh (updates every 5 seconds)", value=False):
-            st.rerun()
-        
-        # Start tournament button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if len(st.session_state.players) >= 4:
-                if st.button("🎮 Start Tournament", type="primary", use_container_width=True):
-                    go_to_page('play')
-            else:
-                st.warning("⚠️ Need at least 4 players to start")
+        else:
+            st.info("No players checked in yet")
+    
+    st.markdown("---")
+    
+    # Auto-refresh option
+    if st.checkbox("Auto-refresh (updates every 5 seconds)", value=False):
+        st.rerun()
+    
+    # Start tournament button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if len(st.session_state.players) >= 4:
+            if st.button("🎮 Start Tournament", type="primary", use_container_width=True):
+                go_to_page('play')
+        else:
+            st.warning("⚠️ Need at least 4 players to start")
 
 # ============================================
 # PAGE 4: PLAY TOURNAMENT  
